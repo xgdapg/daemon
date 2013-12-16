@@ -1,2 +1,1 @@
-daemon
-======
+import _ "github.com/xgdapg/daemon"
