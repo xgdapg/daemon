@@ -5,18 +5,47 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 )
 
-func Daemon() {
+const (
+	Daemon uint = 1 << iota
+	Monitor
+)
+
+var (
+	once  = new(sync.Once)
+	sPid  = strconv.Itoa(os.Getpid())
+	sPpid = strconv.Itoa(os.Getppid())
+)
+
+func Exec(mode uint) {
+	once.Do(func() {
+		if mode&Daemon == Daemon {
+			daemon()
+		}
+		if mode&Monitor == Monitor {
+			monitor()
+		}
+	})
+}
+
+func isDaemoned() bool {
 	envPpid := os.Getenv("__daemon_daemon_ppid__")
-	os.Setenv("__daemon_daemon_ppid__", strconv.Itoa(os.Getpid()))
-	ppid := os.Getppid()
-	if ppid == 1 {
-		return
+	os.Setenv("__daemon_daemon_ppid__", sPid)
+	if sPpid == "1" {
+		return true
 	}
-	if envPpid == strconv.Itoa(ppid) {
+	if envPpid == sPpid {
+		return true
+	}
+	return false
+}
+
+func daemon() {
+	if isDaemoned() {
 		return
 	}
 	cmd := getCmd()
@@ -26,11 +55,17 @@ func Daemon() {
 	os.Exit(0)
 }
 
-func Monitor() {
+func isMonitored() bool {
 	envPpid := os.Getenv("__daemon_monitor_ppid__")
-	os.Setenv("__daemon_monitor_ppid__", strconv.Itoa(os.Getpid()))
-	ppid := os.Getppid()
-	if envPpid == strconv.Itoa(ppid) {
+	os.Setenv("__daemon_monitor_ppid__", sPid)
+	if envPpid == sPpid {
+		return true
+	}
+	return false
+}
+
+func monitor() {
+	if isMonitored() {
 		return
 	}
 	var cmd *exec.Cmd
@@ -55,11 +90,6 @@ func Monitor() {
 		cmd.Wait()
 		time.Sleep(time.Second)
 	}
-}
-
-func DaemonAndMonitor() {
-	Daemon()
-	Monitor()
 }
 
 func getCmd() *exec.Cmd {

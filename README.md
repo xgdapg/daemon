@@ -1,9 +1,12 @@
 ## Usage
 ```go
+package main
+
 import "github.com/xgdapg/daemon"
 
-daemon.Daemon() // send the process to the background
-daemon.Monitor() // keep the process running
-daemon.DaemonAndMonitor() // both of the above
+func init() {
+	daemon.Exec(daemon.Daemon) // send the process to the background
+	daemon.Exec(daemon.Monitor) // keep the process running
+	daemon.Exec(daemon.Daemon | daemon.Monitor) // both of the above
+}
 ```
-**Do *NOT* Use Monitor Before Daemon! EVER!**
