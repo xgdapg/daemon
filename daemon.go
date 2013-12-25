@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -19,6 +20,7 @@ var (
 	once  = new(sync.Once)
 	sPid  = strconv.Itoa(os.Getpid())
 	sPpid = strconv.Itoa(os.Getppid())
+	env   = os.Environ()
 )
 
 func Exec(mode uint) {
@@ -33,8 +35,8 @@ func Exec(mode uint) {
 }
 
 func isDaemoned() bool {
-	envPpid := os.Getenv("__daemon_daemon_ppid__")
-	os.Setenv("__daemon_daemon_ppid__", sPid)
+	envPpid := getEnv("__daemon_daemon_ppid__")
+	setEnv("__daemon_daemon_ppid__", sPid)
 	if sPpid == "1" {
 		return true
 	}
@@ -56,8 +58,8 @@ func daemon() {
 }
 
 func isMonitored() bool {
-	envPpid := os.Getenv("__daemon_monitor_ppid__")
-	os.Setenv("__daemon_monitor_ppid__", sPid)
+	envPpid := getEnv("__daemon_monitor_ppid__")
+	setEnv("__daemon_monitor_ppid__", sPid)
 	if envPpid == sPpid {
 		return true
 	}
@@ -97,6 +99,27 @@ func getCmd() *exec.Cmd {
 	if len(os.Args) > 1 {
 		cmd.Args = append(cmd.Args, os.Args[1:]...)
 	}
-	cmd.Env = os.Environ()
+	cmd.Env = env
 	return cmd
+}
+
+func setEnv(k, v string) {
+	k = k + "="
+	for i, e := range env {
+		if strings.HasPrefix(e, k) {
+			env[i] = k + v
+			return
+		}
+	}
+	env = append(env, k+v)
+}
+
+func getEnv(k string) string {
+	k = k + "="
+	for _, e := range env {
+		if strings.HasPrefix(e, k) {
+			return e[len(k):]
+		}
+	}
+	return ""
 }
